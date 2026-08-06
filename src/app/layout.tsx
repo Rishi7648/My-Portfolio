@@ -23,7 +23,7 @@ const mono = JetBrains_Mono({
   display: "swap",
 });
 
-const siteUrl = "https://rishisilwal.dev";
+const siteUrl = "https://www.rishisilwal.com.np";
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
