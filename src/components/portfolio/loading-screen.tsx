@@ -68,6 +68,10 @@ export function LoadingScreen({ onComplete }: LoadingScreenProps) {
 
   const countMV = useMotionValue(100);
   const rounded = useTransform(countMV, (v) => Math.max(0, Math.round(v)).toString());
+  const progressWidth = useTransform(
+    countMV,
+    (v) => `${Math.min(100, Math.max(0, 100 - v))}%`,
+  );
 
   React.useEffect(() => {
     const controls = animate(countMV, 0, {
@@ -96,38 +100,53 @@ export function LoadingScreen({ onComplete }: LoadingScreenProps) {
           // visible viewport when a scrollbar reserves space, which conflicts
           // with `right: 0` from inset-0 and can trigger a stray horizontal
           // scrollbar on desktop-width browsers while this is mounted.
-          className="fixed inset-0 z-[100] flex h-[100dvh] items-center justify-center overflow-hidden bg-neutral-950"
+          role="status"
+          aria-label="Loading portfolio"
+          className="fixed inset-0 z-[100] flex h-[100dvh] cursor-none items-center justify-center overflow-hidden bg-neutral-950"
           initial={{ y: 0 }}
           exit={{ y: "-100%", transition: { duration: 0.8, ease: [0.76, 0, 0.24, 1] } }}
         >
+          <span className="sr-only">Loading portfolio</span>
+          <div
+            className="pointer-events-none absolute inset-0 z-0 opacity-80"
+            style={{
+              background:
+                "radial-gradient(circle at 16% 12%, rgba(52,211,153,0.1), transparent 28%), radial-gradient(circle at 84% 78%, rgba(245,158,11,0.07), transparent 30%)",
+            }}
+          />
           <SpiderCursor
             targets={letterRefs}
             sequenceStart={LETTER_START_DELAY}
             sequenceStep={LETTER_STAGGER}
-            className="z-0 opacity-90"
+            className="z-10"
           />
-          <div className="pointer-events-none absolute inset-0 z-10 grid-pattern opacity-20" />
-          <div className="pointer-events-none absolute left-1/2 top-1/2 z-10 h-72 w-72 -translate-x-1/2 -translate-y-1/2 gradient-blob rounded-full opacity-15" />
+          <div className="pointer-events-none absolute inset-0 z-[1] grid-pattern opacity-20" />
+          <div className="pointer-events-none absolute left-1/2 top-1/2 z-[1] h-72 w-72 -translate-x-1/2 -translate-y-1/2 rounded-full gradient-blob opacity-15" />
 
           <div className="relative z-20 inline-block px-4">
             <motion.h1
-              className="relative flex justify-center text-center font-display font-black tracking-tight text-white text-[clamp(2.5rem,15vw,9rem)] whitespace-nowrap"
+              className="relative flex justify-center whitespace-nowrap text-center font-display text-[clamp(2.5rem,15vw,9rem)] font-black tracking-tight text-white"
               animate={{ scale: [1, 1, 1.03], transition: { duration: TOTAL_REVEAL_TIME + (HOLD_AFTER/1000), times: [0, 0.8, 1] } }}
+              style={{ textShadow: "0 0 52px rgba(255,255,255,0.12)" }}
             >
               {NAME.split("").map((letter, i) => (
-                <motion.span
+                <span
                   key={i}
                   ref={(node) => {
                     letterRefs.current[i] = node;
                   }}
-                  custom={i}
-                  variants={letterVariants}
-                  initial="hidden"
-                  animate="visible"
-                  className="inline-block"
+                  className="inline-block will-change-transform"
                 >
-                  {letter}
-                </motion.span>
+                  <motion.span
+                    custom={i}
+                    variants={letterVariants}
+                    initial="hidden"
+                    animate="visible"
+                    className="inline-block"
+                  >
+                    {letter}
+                  </motion.span>
+                </span>
               ))}
 
               <motion.span
@@ -142,6 +161,12 @@ export function LoadingScreen({ onComplete }: LoadingScreenProps) {
                 }}
               />
             </motion.h1>
+            <motion.div
+              initial={{ scaleX: 0, opacity: 0 }}
+              animate={{ scaleX: 1, opacity: 1 }}
+              transition={{ duration: 1, delay: 0.35, ease: [0.16, 1, 0.3, 1] }}
+              className="mx-auto mt-4 h-px w-20 origin-center bg-gradient-to-r from-transparent via-emerald-200/70 to-transparent sm:mt-6 sm:w-28"
+            />
           </div>
 
           <motion.div
@@ -151,12 +176,26 @@ export function LoadingScreen({ onComplete }: LoadingScreenProps) {
             className="absolute bottom-[max(1rem,5vw)] right-[max(1rem,5vw)] z-20"
           >
             <motion.span
-              className="block font-display font-black leading-none tabular-nums text-white text-[clamp(1.5rem,8vw,6rem)]"
-              animate={{ opacity: [1, 1, 0], transition: { duration: TOTAL_REVEAL_TIME + (HOLD_AFTER/1000), times: [0, 0.85, 1] } }}
+              aria-hidden="true"
+              className="block font-display text-[clamp(1.5rem,8vw,6rem)] font-black leading-none tabular-nums text-white"
+              animate={{
+                opacity: [1, 1, 0],
+                transition: {
+                  duration: TOTAL_REVEAL_TIME + HOLD_AFTER / 1000,
+                  times: [0, 0.85, 1],
+                },
+              }}
             >
               {rounded}
             </motion.span>
           </motion.div>
+
+          <div className="pointer-events-none absolute inset-x-0 bottom-0 z-20 h-px bg-white/10">
+            <motion.div
+              className="h-full bg-gradient-to-r from-emerald-400 via-emerald-200 to-amber-300 shadow-[0_0_14px_rgba(52,211,153,0.75)]"
+              style={{ width: progressWidth }}
+            />
+          </div>
         </motion.div>
       )}
     </AnimatePresence>
