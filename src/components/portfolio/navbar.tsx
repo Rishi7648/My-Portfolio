@@ -32,7 +32,7 @@ export function Navbar() {
     return () => window.cancelAnimationFrame(frame);
   }, []);
 
-  // Active section highlighting via IntersectionObserver + URL hash sync
+  // Highlight the section in view without changing the URL during scrolling.
   React.useEffect(() => {
     const sections = VISIBLE_NAV_LINKS.map((l) =>
       document.querySelector(l.href)
@@ -48,8 +48,6 @@ export function Navbar() {
         if (visible[0]) {
           const newHash = `#${visible[0].target.id}`;
           setActive(newHash);
-          // Update the URL bar without triggering a page reload or scroll jump
-          window.history.replaceState(null, "", newHash);
         }
       },
       { rootMargin: "-40% 0px -50% 0px", threshold: [0, 0.25, 0.5, 1] }

@@ -573,7 +573,7 @@ export function Hero({ startAnimation = true }: HeroProps) {
           <motion.div variants={clipVariants} initial="hidden" animate={animState}>
             <Image
               src="/hero.jpg"
-              alt="Hem Shrestha"
+              alt="Rishi Silwal"
               width={800}
               height={1000}
               priority
