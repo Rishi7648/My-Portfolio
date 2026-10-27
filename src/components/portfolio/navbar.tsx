@@ -6,9 +6,10 @@ import { Menu, X } from "lucide-react";
 import { NAV_LINKS } from "@/lib/portfolio/data";
 import { cn } from "@/lib/utils";
 
-// Experience section was removed from page.tsx — filter its link out here too,
-// so the navbar doesn't scroll to a section that no longer exists.
-const VISIBLE_NAV_LINKS = NAV_LINKS.filter((l) => l.href !== "#experience");
+// Keep links to sections that are currently rendered on the page.
+const VISIBLE_NAV_LINKS = NAV_LINKS.filter(
+  (l) => l.href !== "#experience" && l.href !== "#projects"
+);
 
 export function Navbar() {
   const [scrolled, setScrolled] = React.useState(false);
@@ -21,6 +22,16 @@ export function Navbar() {
 
   // Sync active section from URL hash on first load
   React.useEffect(() => {
+    // Older versions added #home as soon as the page loaded. Remove that stale
+    // default hash while preserving intentional links to other sections.
+    if (window.location.hash === "#home") {
+      window.history.replaceState(
+        null,
+        "",
+        `${window.location.pathname}${window.location.search}`
+      );
+    }
+
     const frame = window.requestAnimationFrame(() => {
       const hash = window.location.hash;
       if (hash && VISIBLE_NAV_LINKS.some((l) => l.href === hash)) {
@@ -32,7 +43,7 @@ export function Navbar() {
     return () => window.cancelAnimationFrame(frame);
   }, []);
 
-  // Highlight the section in view without changing the URL during scrolling.
+  // Keep the active nav item and URL in sync as the visitor scrolls.
   React.useEffect(() => {
     const sections = VISIBLE_NAV_LINKS.map((l) =>
       document.querySelector(l.href)
@@ -40,14 +51,32 @@ export function Navbar() {
 
     if (sections.length === 0) return;
 
+    let isInitialObservation = true;
     const observer = new IntersectionObserver(
       (entries) => {
         const visible = entries
           .filter((e) => e.isIntersecting)
           .sort((a, b) => b.intersectionRatio - a.intersectionRatio);
+        const skipUrlUpdate = isInitialObservation;
+        isInitialObservation = false;
+
         if (visible[0]) {
           const newHash = `#${visible[0].target.id}`;
           setActive(newHash);
+
+          // Avoid reintroducing #home on first paint. After scrolling starts,
+          // reflect the active section in the address bar without adding a
+          // browser history entry for every section transition.
+          if (!skipUrlUpdate) {
+            const nextUrl =
+              newHash === "#home"
+                ? `${window.location.pathname}${window.location.search}`
+                : `${window.location.pathname}${window.location.search}${newHash}`;
+            const currentUrl = `${window.location.pathname}${window.location.search}${window.location.hash}`;
+            if (currentUrl !== nextUrl) {
+              window.history.replaceState(null, "", nextUrl);
+            }
+          }
         }
       },
       { rootMargin: "-40% 0px -50% 0px", threshold: [0, 0.25, 0.5, 1] }
