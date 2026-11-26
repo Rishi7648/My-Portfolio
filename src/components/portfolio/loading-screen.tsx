@@ -32,11 +32,30 @@ const LETTER_STARTS = [
   { x: 52, y: 88, rotate: 24 },
 ];
 
-// Detect mobile at module level for SSR safety — defaults to false,
-// corrected in the component's first effect.
+// Subscribe to coarse-pointer devices and narrow viewports for mobile timings.
+const MOBILE_QUERY = "(max-width: 767px), (pointer: coarse)";
+
 function getIsMobile() {
   if (typeof window === "undefined") return false;
-  return window.innerWidth < 768 || "ontouchstart" in window;
+  return window.matchMedia(MOBILE_QUERY).matches || "ontouchstart" in window;
+}
+
+function subscribeToMobile(callback: () => void) {
+  const query = window.matchMedia(MOBILE_QUERY);
+  if (query.addEventListener) {
+    query.addEventListener("change", callback);
+  } else {
+    query.addListener(callback);
+  }
+  window.addEventListener("resize", callback);
+  return () => {
+    if (query.removeEventListener) {
+      query.removeEventListener("change", callback);
+    } else {
+      query.removeListener(callback);
+    }
+    window.removeEventListener("resize", callback);
+  };
 }
 
 function getTimings(mobile: boolean) {
@@ -96,16 +115,20 @@ const MAX_LOADER_TIME = 8000;
 
 export function LoadingScreen({ onComplete }: LoadingScreenProps) {
   const [phase, setPhase] = React.useState<"active" | "done">("active");
-  const [isMobile, setIsMobile] = React.useState(false);
+  const isMobile = React.useSyncExternalStore(
+    subscribeToMobile,
+    getIsMobile,
+    () => false
+  );
   const letterRefs = React.useRef<Array<HTMLElement | null>>([]);
   const hasFired = React.useRef(false);
+  const onCompleteRef = React.useRef(onComplete);
 
-  // Detect mobile on mount
   React.useEffect(() => {
-    setIsMobile(getIsMobile());
-  }, []);
+    onCompleteRef.current = onComplete;
+  }, [onComplete]);
 
-  const timings = getTimings(isMobile);
+  const timings = React.useMemo(() => getTimings(isMobile), [isMobile]);
   const variants = React.useMemo(() => makeLetterVariants(isMobile), [isMobile]);
 
   const countMV = useMotionValue(100);
@@ -119,27 +142,42 @@ export function LoadingScreen({ onComplete }: LoadingScreenProps) {
     if (hasFired.current) return;
     hasFired.current = true;
     setPhase("done");
-    onComplete?.();
-  }, [onComplete]);
+    onCompleteRef.current?.();
+  }, []);
+
+  React.useEffect(() => {
+    if (phase === "done") return;
+
+    const prefersReducedMotion = window.matchMedia(
+      "(prefers-reduced-motion: reduce)"
+    ).matches;
+    if (isMobile || prefersReducedMotion) {
+      finish();
+      return;
+    }
+
+    const timer = window.setTimeout(finish, MAX_LOADER_TIME);
+    return () => window.clearTimeout(timer);
+  }, [finish, isMobile, phase]);
 
   // Main countdown animation
   React.useEffect(() => {
+    if (phase === "done") return;
+
+    let holdTimer: number | undefined;
     const controls = animate(countMV, 0, {
       duration: timings.COUNTDOWN_DURATION,
       delay: timings.ENTRANCE_DELAY,
       ease: "linear",
       onComplete: () => {
-        setTimeout(finish, timings.HOLD_AFTER);
+        holdTimer = window.setTimeout(finish, timings.HOLD_AFTER);
       },
     });
-    return () => controls.stop();
-  }, [countMV, timings, finish]);
-
-  // Safety timeout — force-dismiss loader if animation gets stuck
-  React.useEffect(() => {
-    const timer = setTimeout(finish, MAX_LOADER_TIME);
-    return () => clearTimeout(timer);
-  }, [finish]);
+    return () => {
+      controls.stop();
+      if (holdTimer !== undefined) window.clearTimeout(holdTimer);
+    };
+  }, [countMV, timings, finish, phase]);
 
   return (
     <AnimatePresence>

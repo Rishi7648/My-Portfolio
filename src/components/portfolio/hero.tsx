@@ -260,17 +260,19 @@ function useShaderBackground(containerRef: React.RefObject<HTMLElement | null>) 
     const canvas = canvasRef.current;
     if (!canvas) return;
 
-    const gl = canvas.getContext("webgl2");
-    if (!gl) return; // WebGL2 unsupported — quietly skip, page still looks fine without it
-
-    // Mobile devices get a lighter DPR multiplier — fewer pixels to shade
-    // keeps the fragment shader loop (12 iterations + fbm noise) smooth
-    // on lower-powered GPUs.
-    const isMobile = window.innerWidth < 768;
-    const dpr = Math.max(1, (isMobile ? 0.35 : 0.5) * window.devicePixelRatio);
+    const isMobileOrTouch =
+      window.innerWidth < 768 ||
+      window.matchMedia("(pointer: coarse)").matches ||
+      "ontouchstart" in window;
     const prefersReducedMotion = window.matchMedia(
       "(prefers-reduced-motion: reduce)"
     ).matches;
+    if (isMobileOrTouch || prefersReducedMotion) return;
+
+    const gl = canvas.getContext("webgl2");
+    if (!gl) return; // WebGL2 unsupported — quietly skip, page still looks fine without it
+
+    const dpr = Math.max(1, 0.5 * window.devicePixelRatio);
 
     const renderer = new ShaderRenderer(canvas, gl);
     renderer.setup();
@@ -289,11 +291,7 @@ function useShaderBackground(containerRef: React.RefObject<HTMLElement | null>) 
       frameId = requestAnimationFrame(loop);
     };
 
-    if (prefersReducedMotion) {
-      renderer.render(0);
-    } else {
-      loop(0);
-    }
+    loop(0);
 
     window.addEventListener("resize", resize);
     window.addEventListener("orientationchange", resize);
@@ -406,6 +404,15 @@ export function Hero({ startAnimation = true }: HeroProps) {
 
   useGSAP(
     () => {
+      const isMobileOrTouch =
+        window.innerWidth < 768 ||
+        window.matchMedia("(pointer: coarse)").matches ||
+        "ontouchstart" in window;
+      const prefersReducedMotion = window.matchMedia(
+        "(prefers-reduced-motion: reduce)"
+      ).matches;
+      if (isMobileOrTouch || prefersReducedMotion) return;
+
       gsap.to(blob1.current, { x: "+=40", y: "-=30", duration: 8, repeat: -1, yoyo: true, ease: "sine.inOut" });
       gsap.to(blob2.current, { x: "-=50", y: "+=40", duration: 10, repeat: -1, yoyo: true, ease: "sine.inOut" });
       gsap.to(blob3.current, { x: "+=30", y: "+=30", duration: 7, repeat: -1, yoyo: true, ease: "sine.inOut" });
