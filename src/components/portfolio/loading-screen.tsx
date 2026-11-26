@@ -186,7 +186,7 @@ export function LoadingScreen({ onComplete }: LoadingScreenProps) {
           key="loader"
           role="status"
           aria-label="Loading portfolio"
-          className="fixed inset-0 z-[100] flex h-[100dvh] cursor-none items-center justify-center overflow-hidden bg-neutral-950"
+          className="fixed inset-0 z-[100] hidden h-[100dvh] cursor-none items-center justify-center overflow-hidden bg-neutral-950 md:flex"
           initial={{ y: 0 }}
           exit={{ y: "-100%", transition: { duration: 0.8, ease: [0.76, 0, 0.24, 1] } }}
         >

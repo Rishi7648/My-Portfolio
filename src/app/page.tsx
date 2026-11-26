@@ -1,6 +1,3 @@
-"use client";
-
-import * as React from "react";
 import { Navbar } from "@/components/portfolio/navbar";
 import { Hero } from "@/components/portfolio/hero";
 import { Ticker } from "@/components/portfolio/ticker";
@@ -14,15 +11,13 @@ import { ScrollProgress } from "@/components/portfolio/scroll-progress";
 import { BackToTop } from "@/components/portfolio/back-to-top";
 
 export default function Home() {
-  const [loaded, setLoaded] = React.useState(false);
-
   return (
     <>
-      <LoadingScreen onComplete={() => setLoaded(true)} />
+      <LoadingScreen />
       <ScrollProgress />
       <Navbar />
       <main className="relative flex min-h-screen flex-col">
-        <Hero startAnimation={loaded} />
+        <Hero />
         <Ticker />
         <About />
         <Skills />
