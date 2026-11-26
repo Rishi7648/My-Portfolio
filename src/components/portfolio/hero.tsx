@@ -260,17 +260,19 @@ function useShaderBackground(containerRef: React.RefObject<HTMLElement | null>) 
     const canvas = canvasRef.current;
     if (!canvas) return;
 
-    const gl = canvas.getContext("webgl2");
-    if (!gl) return; // WebGL2 unsupported — quietly skip, page still looks fine without it
-
-    // Mobile devices get a lighter DPR multiplier — fewer pixels to shade
-    // keeps the fragment shader loop (12 iterations + fbm noise) smooth
-    // on lower-powered GPUs.
-    const isMobile = window.innerWidth < 768;
-    const dpr = Math.max(1, (isMobile ? 0.35 : 0.5) * window.devicePixelRatio);
+    const isMobileOrTouch =
+      window.innerWidth < 768 ||
+      window.matchMedia("(pointer: coarse)").matches ||
+      "ontouchstart" in window;
     const prefersReducedMotion = window.matchMedia(
       "(prefers-reduced-motion: reduce)"
     ).matches;
+    if (isMobileOrTouch || prefersReducedMotion) return;
+
+    const gl = canvas.getContext("webgl2");
+    if (!gl) return; // WebGL2 unsupported — quietly skip, page still looks fine without it
+
+    const dpr = Math.max(1, 0.5 * window.devicePixelRatio);
 
     const renderer = new ShaderRenderer(canvas, gl);
     renderer.setup();
@@ -289,11 +291,7 @@ function useShaderBackground(containerRef: React.RefObject<HTMLElement | null>) 
       frameId = requestAnimationFrame(loop);
     };
 
-    if (prefersReducedMotion) {
-      renderer.render(0);
-    } else {
-      loop(0);
-    }
+    loop(0);
 
     window.addEventListener("resize", resize);
     window.addEventListener("orientationchange", resize);
@@ -406,6 +404,15 @@ export function Hero({ startAnimation = true }: HeroProps) {
 
   useGSAP(
     () => {
+      const isMobileOrTouch =
+        window.innerWidth < 768 ||
+        window.matchMedia("(pointer: coarse)").matches ||
+        "ontouchstart" in window;
+      const prefersReducedMotion = window.matchMedia(
+        "(prefers-reduced-motion: reduce)"
+      ).matches;
+      if (isMobileOrTouch || prefersReducedMotion) return;
+
       gsap.to(blob1.current, { x: "+=40", y: "-=30", duration: 8, repeat: -1, yoyo: true, ease: "sine.inOut" });
       gsap.to(blob2.current, { x: "-=50", y: "+=40", duration: 10, repeat: -1, yoyo: true, ease: "sine.inOut" });
       gsap.to(blob3.current, { x: "+=30", y: "+=30", duration: 7, repeat: -1, yoyo: true, ease: "sine.inOut" });
@@ -427,6 +434,7 @@ export function Hero({ startAnimation = true }: HeroProps) {
 
   const taglineWords = PERSONAL.tagline.split(" ");
   const animState = startAnimation ? "show" : "hidden";
+  const initialState = startAnimation ? false : "hidden";
 
   return (
     <section
@@ -484,7 +492,7 @@ export function Hero({ startAnimation = true }: HeroProps) {
             <motion.p
               custom={0.15}
               variants={fadeUpVariant}
-              initial="hidden"
+              initial={initialState}
               animate={animState}
               className="text-lg tracking-wide text-neutral-600 min-[375px]:text-xl sm:text-2xl"
               style={{ fontFamily: "'Inter', sans-serif", fontWeight: 500 }}
@@ -498,7 +506,7 @@ export function Hero({ startAnimation = true }: HeroProps) {
               <motion.span
                 custom={0}
                 variants={wordVariants}
-                initial="hidden"
+                initial={initialState}
                 animate={animState}
                 className="inline-block bg-gradient-to-r from-neutral-950 via-neutral-800 to-neutral-950 bg-clip-text text-transparent"
               >
@@ -507,7 +515,7 @@ export function Hero({ startAnimation = true }: HeroProps) {
               <motion.span
                 custom={1}
                 variants={wordVariants}
-                initial="hidden"
+                initial={initialState}
                 animate={animState}
                 className="inline-block bg-gradient-to-r from-blue-600 via-neutral-950 to-neutral-950 bg-clip-text text-transparent"
               >
@@ -520,14 +528,14 @@ export function Hero({ startAnimation = true }: HeroProps) {
             <motion.div
               custom={0.85}
               variants={fadeUpVariant}
-              initial="hidden"
+              initial={initialState}
               animate={animState}
               className="flex flex-wrap items-start gap-2 text-lg text-neutral-600 min-[375px]:text-xl sm:items-center sm:gap-3 sm:text-2xl md:text-3xl"
               style={{ fontFamily: "'Cormorant Garamond', serif", fontStyle: "italic", fontWeight: 600 }}
             >
               <span className="inline-flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-1">
                 <motion.span
-                  initial={{ rotate: -20, scale: 0 }}
+                  initial={startAnimation ? false : { rotate: -20, scale: 0 }}
                   animate={startAnimation ? { rotate: 0, scale: 1 } : { rotate: -20, scale: 0 }}
                   transition={{ delay: 1.05, duration: 0.6, ease: [0.34, 1.56, 0.64, 1] }}
                   className="inline-flex"
@@ -542,7 +550,7 @@ export function Hero({ startAnimation = true }: HeroProps) {
 
           <motion.p
             variants={taglineContainer}
-            initial="hidden"
+            initial={initialState}
             animate={animState}
             className="mt-4 max-w-xl text-xl leading-snug text-neutral-600 text-pretty min-[375px]:text-2xl sm:mt-6 md:text-3xl"
             style={{ fontFamily: "'Cormorant Garamond', serif", fontStyle: "italic", fontWeight: 600 }}
@@ -566,11 +574,11 @@ export function Hero({ startAnimation = true }: HeroProps) {
             instead of a value the layout could never honor. */}
         <motion.div
           variants={imageVariants}
-          initial="hidden"
+          initial={initialState}
           animate={animState}
           className="relative mx-auto mt-5 block w-full max-w-[17rem] self-start justify-self-center min-[375px]:max-w-[19rem] sm:mt-8 sm:max-w-[20rem] lg:col-span-5 lg:mt-0 lg:-ml-8 lg:-mt-16 lg:w-full lg:max-w-[34rem] lg:justify-self-end xl:-ml-12 xl:-mt-24"
         >
-          <motion.div variants={clipVariants} initial="hidden" animate={animState}>
+          <motion.div variants={clipVariants} initial={initialState} animate={animState}>
             <Image
               src="/hero.jpg"
               alt="Rishi Silwal"

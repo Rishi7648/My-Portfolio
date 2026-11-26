@@ -94,6 +94,8 @@ export function Globe({
     let animationId: number
     let phi = 0
     let ro: ResizeObserver | null = null
+    let visibilityObserver: IntersectionObserver | null = null
+    let isVisible = false
     // Guards init() from running after this effect instance has already
     // been cleaned up — without this, a ResizeObserver callback from a
     // stale effect run (React Strict Mode double-invoke, Fast Refresh,
@@ -124,19 +126,26 @@ export function Globe({
     }
 
     function init(width: number) {
-      if (cancelled || width === 0) return
+      if (cancelled || !isVisible || width === 0) return
       currentWidth = width
+
+      const isMobileOrTouch =
+        window.matchMedia("(max-width: 767px), (pointer: coarse)").matches ||
+        "ontouchstart" in window
 
       try {
         globe = createGlobe(canvas, {
-          devicePixelRatio: Math.min(window.devicePixelRatio || 1, 2),
+          devicePixelRatio: Math.min(
+            window.devicePixelRatio || 1,
+            isMobileOrTouch ? 1.25 : 2
+          ),
           width,
           height: width,
           phi: 0,
           theta: 0.2,
           dark: 0.05,
           diffuse: 1.5,
-          mapSamples: 16000,
+          mapSamples: isMobileOrTouch ? 8000 : 16000,
           mapBrightness: 8,
           baseColor: [0.98, 0.98, 1],
           markerColor: [0.3, 0.55, 0.95],
@@ -184,14 +193,31 @@ export function Globe({
     function handleResize(width: number) {
       // Ignore sub-pixel fluctuations (e.g. scrollbar show/hide, zoom
       // rounding) so we don't thrash the WebGL context unnecessarily
-      if (Math.abs(width - currentWidth) < 4) return
+      if (!isVisible || Math.abs(width - currentWidth) < 4) return
       destroyGlobe()
       init(width)
     }
 
+    if (typeof IntersectionObserver === "undefined") {
+      isVisible = true
+    } else {
+      visibilityObserver = new IntersectionObserver(([entry]) => {
+        const nextVisible = entry?.isIntersecting ?? false
+        if (nextVisible === isVisible) return
+        isVisible = nextVisible
+
+        if (isVisible) {
+          init(canvas.getBoundingClientRect().width)
+        } else {
+          destroyGlobe()
+        }
+      })
+      visibilityObserver.observe(canvas)
+    }
+
     ro = new ResizeObserver((entries) => {
       const width = entries[0]?.contentRect.width ?? 0
-      if (width === 0) return
+      if (width === 0 || !isVisible) return
 
       if (!globe) {
         init(width)
@@ -206,9 +232,12 @@ export function Globe({
     })
     ro.observe(canvas)
 
+    if (isVisible) init(canvas.getBoundingClientRect().width)
+
     return () => {
       cancelled = true
       clearTimeout(resizeTimeout)
+      visibilityObserver?.disconnect()
       ro?.disconnect()
       destroyGlobe()
     }
